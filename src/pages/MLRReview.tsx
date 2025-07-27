@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CTAButton from '../components/CTAButton'
+import ExportModal from '../components/ExportModal'
+import { exportReviewData } from '../utils/exportUtils'
 import { THERAPEUTIC_AREAS } from '../constants/therapeuticAreas'
 import { 
   Search,
@@ -58,6 +60,7 @@ const STORAGE_KEYS = {
 
 export default function MLRReview() {
   const navigate = useNavigate()
+  const [showExportModal, setShowExportModal] = useState(false)
   
   // Initialize state from localStorage
   const [searchTerm, setSearchTerm] = useState(() => 
@@ -165,6 +168,14 @@ export default function MLRReview() {
     navigate(`/mlr-review/${submissionId}`)
   }
 
+  const handleExport = (format: 'csv' | 'pdf') => {
+    exportReviewData(filteredSubmissions, format, {
+      filename: 'mlr-review-report',
+      title: 'MLR Review Report',
+      type: 'mlr'
+    })
+  }
+
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
       case 'high':
@@ -206,6 +217,14 @@ export default function MLRReview() {
 
   return (
     <div className="space-y-6">
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+        title="Export MLR Review Report"
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -237,7 +256,11 @@ export default function MLRReview() {
               <span className="text-sm font-medium">List</span>
             </button>
           </div>
-          <CTAButton variant="primary" icon={<FileText className="h-4 w-4" />}>
+          <CTAButton 
+            variant="primary" 
+            icon={<FileText className="h-4 w-4" />}
+            onClick={() => setShowExportModal(true)}
+          >
             Export Report
           </CTAButton>
         </div>
