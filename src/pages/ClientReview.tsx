@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import CTAButton from '@/components/CTAButton'
+import ExportModal from '@/components/ExportModal'
+import { exportReviewData } from '@/utils/exportUtils'
 import { 
   Search, 
   Filter, 
@@ -28,6 +30,7 @@ export default function ClientReview() {
   const [selectedPriority, setSelectedPriority] = useState<string>('all')
   const [selectedClient, setSelectedClient] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [showExportModal, setShowExportModal] = useState(false)
   
   // Initialize viewMode from localStorage or default to 'grid'
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
@@ -98,6 +101,13 @@ export default function ClientReview() {
     return matchesSearch && matchesPriority && matchesClient && matchesStatus
   })
 
+  const handleExport = (format: 'csv' | 'pdf') => {
+    exportReviewData(filteredSubmissions || [], format, {
+      filename: 'client-review-report',
+      title: 'Client Review Report'
+    })
+  }
+
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
       case 'high': return 'bg-red-100 text-red-800'
@@ -137,6 +147,14 @@ export default function ClientReview() {
 
   return (
     <div className="space-y-6">
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+        title="Export Client Review Report"
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -168,7 +186,11 @@ export default function ClientReview() {
               <span className="text-sm font-medium">List</span>
             </button>
           </div>
-          <CTAButton variant="primary" icon={<FileText className="h-4 w-4" />}>
+          <CTAButton 
+            variant="primary" 
+            icon={<FileText className="h-4 w-4" />}
+            onClick={() => setShowExportModal(true)}
+          >
             Export Report
           </CTAButton>
         </div>
