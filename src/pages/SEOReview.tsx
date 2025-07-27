@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CTAButton from '../components/CTAButton'
+import ExportModal from '../components/ExportModal'
+import { exportReviewData } from '../utils/exportUtils'
 import { THERAPEUTIC_AREAS } from '../constants/therapeuticAreas'
 import { 
   Search,
@@ -61,6 +63,7 @@ export default function SEOReview() {
   const [searchTerm, setSearchTerm] = useState('')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [therapeuticAreaFilter, setTherapeuticAreaFilter] = useState<string>('all')
+  const [showExportModal, setShowExportModal] = useState(false)
   
   // Initialize viewMode from localStorage or default to 'grid'
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
@@ -168,6 +171,13 @@ export default function SEOReview() {
     navigate(`/seo-review/${submissionId}`)
   }
 
+  const handleExport = (format: 'csv' | 'pdf') => {
+    exportReviewData(filteredSubmissions, format, {
+      filename: 'seo-review-report',
+      title: 'SEO Review Report'
+    })
+  }
+
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
       case 'high':
@@ -204,6 +214,14 @@ export default function SEOReview() {
 
   return (
     <div className="space-y-6">
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+        title="Export SEO Review Report"
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -235,7 +253,11 @@ export default function SEOReview() {
               <span className="text-sm font-medium">List</span>
             </button>
           </div>
-          <CTAButton variant="primary" icon={<FileText className="h-4 w-4" />}>
+          <CTAButton 
+            variant="primary" 
+            icon={<FileText className="h-4 w-4" />}
+            onClick={() => setShowExportModal(true)}
+          >
             Export Report
           </CTAButton>
         </div>
