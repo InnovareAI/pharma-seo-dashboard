@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import CTAButton from '../components/CTAButton'
 import ExportModal from '../components/ExportModal'
+import AdvancedFilterModal, { FilterState } from '../components/AdvancedFilterModal'
 import { exportReviewData } from '../utils/exportUtils'
 import { THERAPEUTIC_AREAS } from '../constants/therapeuticAreas'
 import { 
@@ -23,7 +24,7 @@ import {
   List,
   Eye
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, isWithinInterval, parseISO } from 'date-fns'
 
 interface Submission {
   id: string
@@ -60,15 +61,30 @@ interface Submission {
 
 export default function SEOReview() {
   const navigate = useNavigate()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [priorityFilter, setPriorityFilter] = useState<string>('all')
-  const [therapeuticAreaFilter, setTherapeuticAreaFilter] = useState<string>('all')
   const [showExportModal, setShowExportModal] = useState(false)
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   
   // Initialize viewMode from localStorage or default to 'grid'
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
     const savedViewMode = localStorage.getItem('seoReviewViewMode')
     return (savedViewMode === 'list' || savedViewMode === 'grid') ? savedViewMode : 'grid'
+  })
+
+  // Initialize filter state
+  const [filters, setFilters] = useState<FilterState>({
+    searchTerm: '',
+    priorityFilter: 'all',
+    therapeuticAreaFilter: 'all',
+    stageFilter: 'all',
+    clientFilter: '',
+    geographyFilter: 'all',
+    aiStatusFilter: 'all',
+    workflowStageFilter: 'all',
+    targetAudienceFilter: 'all',
+    dateRangeFilter: {
+      start: '',
+      end: ''
+    }
   })
 
   // Save viewMode to localStorage whenever it changes
@@ -138,28 +154,87 @@ export default function SEOReview() {
 
   const filteredSubmissions = submissions?.filter(submission => {
     // Search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
+    if (filters.searchTerm) {
+      const searchLower = filters.searchTerm.toLowerCase()
       const nameMatch = submission.product_name?.toLowerCase().includes(searchLower)
       const areaMatch = submission.therapeutic_area?.toLowerCase().includes(searchLower)
-      if (!nameMatch && !areaMatch) {
+      const clientMatch = submission.client_name?.toLowerCase().includes(searchLower)
+      if (!nameMatch && !areaMatch && !clientMatch) {
         return false
       }
     }
     
     // Priority filter
-    if (priorityFilter !== 'all') {
+    if (filters.priorityFilter !== 'all') {
       const submissionPriority = submission.priority_level?.toLowerCase() || 'medium'
-      if (submissionPriority !== priorityFilter) {
+      if (submissionPriority !== filters.priorityFilter) {
         return false
       }
     }
     
     // Therapeutic area filter
-    if (therapeuticAreaFilter !== 'all') {
-      // Handle null/undefined therapeutic areas
+    if (filters.therapeuticAreaFilter !== 'all') {
       const submissionArea = submission.therapeutic_area || 'Not specified'
-      if (submissionArea !== therapeuticAreaFilter) {
+      if (submissionArea !== filters.therapeuticAreaFilter) {
+        return false
+      }
+    }
+    
+    // Stage filter
+    if (filters.stageFilter !== 'all') {
+      const submissionStage = submission.stage || 'pre-launch'
+      if (submissionStage !== filters.stageFilter) {
+        return false
+      }
+    }
+    
+    // Client filter (text search)
+    if (filters.clientFilter) {
+      const clientName = submission.client_name?.toLowerCase() || ''
+      if (!clientName.includes(filters.clientFilter.toLowerCase())) {
+        return false
+      }
+    }
+    
+    // Geography filter
+    if (filters.geographyFilter !== 'all') {
+      const geographies = submission.geography || []
+      if (!geographies.includes(filters.geographyFilter)) {
+        return false
+      }
+    }
+    
+    // AI Status filter
+    if (filters.aiStatusFilter !== 'all') {
+      const aiStatus = submission.ai_processing_status || 'pending'
+      if (aiStatus !== filters.aiStatusFilter) {
+        return false
+      }
+    }
+    
+    // Workflow Stage filter
+    if (filters.workflowStageFilter !== 'all') {
+      const workflowStage = submission.workflow_stage || 'draft'
+      if (workflowStage !== filters.workflowStageFilter) {
+        return false
+      }
+    }
+    
+    // Target Audience filter
+    if (filters.targetAudienceFilter !== 'all') {
+      const audiences = submission.target_audience || []
+      if (!audiences.includes(filters.targetAudienceFilter)) {
+        return false
+      }
+    }
+    
+    // Date range filter
+    if (filters.dateRangeFilter.start || filters.dateRangeFilter.end) {
+      const submissionDate = parseISO(submission.created_at)
+      const startDate = filters.dateRangeFilter.start ? parseISO(filters.dateRangeFilter.start) : new Date(0)
+      const endDate = filters.dateRangeFilter.end ? parseISO(filters.dateRangeFilter.end) : new Date()
+      
+      if (!isWithinInterval(submissionDate, { start: startDate, end: endDate })) {
         return false
       }
     }
@@ -176,6 +251,10 @@ export default function SEOReview() {
       filename: 'seo-review-report',
       title: 'SEO Review Report'
     })
+  }
+
+  const handleApplyFilters = (newFilters: FilterState) => {
+    setFilters(newFilters)
   }
 
   const getPriorityColor = (priority: string) => {
@@ -204,6 +283,21 @@ export default function SEOReview() {
     }
   }
 
+  const activeFilterCount = () => {
+    let count = 0
+    if (filters.searchTerm) count++
+    if (filters.priorityFilter !== 'all') count++
+    if (filters.therapeuticAreaFilter !== 'all') count++
+    if (filters.stageFilter !== 'all') count++
+    if (filters.clientFilter) count++
+    if (filters.geographyFilter !== 'all') count++
+    if (filters.aiStatusFilter !== 'all') count++
+    if (filters.workflowStageFilter !== 'all') count++
+    if (filters.targetAudienceFilter !== 'all') count++
+    if (filters.dateRangeFilter.start || filters.dateRangeFilter.end) count++
+    return count
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -220,6 +314,14 @@ export default function SEOReview() {
         onClose={() => setShowExportModal(false)}
         onExport={handleExport}
         title="Export SEO Review Report"
+      />
+
+      {/* Advanced Filter Modal */}
+      <AdvancedFilterModal
+        isOpen={showAdvancedFilters}
+        onClose={() => setShowAdvancedFilters(false)}
+        onApplyFilters={handleApplyFilters}
+        currentFilters={filters}
       />
 
       {/* Header */}
@@ -322,15 +424,15 @@ export default function SEOReview() {
             <input
               type="text"
               placeholder="Search content..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.searchTerm}
+              onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
+            value={filters.priorityFilter}
+            onChange={(e) => setFilters({ ...filters, priorityFilter: e.target.value })}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Priorities</option>
@@ -340,8 +442,8 @@ export default function SEOReview() {
           </select>
 
           <select
-            value={therapeuticAreaFilter}
-            onChange={(e) => setTherapeuticAreaFilter(e.target.value)}
+            value={filters.therapeuticAreaFilter}
+            onChange={(e) => setFilters({ ...filters, therapeuticAreaFilter: e.target.value })}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Therapeutic Areas</option>
@@ -352,8 +454,9 @@ export default function SEOReview() {
           </select>
 
           <select
+            value={filters.stageFilter}
+            onChange={(e) => setFilters({ ...filters, stageFilter: e.target.value })}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            defaultValue="all"
           >
             <option value="all">All Stages</option>
             <option value="pre-launch">Pre-Launch</option>
@@ -361,8 +464,12 @@ export default function SEOReview() {
             <option value="post-launch">Post-Launch</option>
           </select>
 
-          <CTAButton variant="secondary" icon={<Filter className="h-4 w-4" />}>
-            More Filters
+          <CTAButton 
+            variant="secondary" 
+            icon={<Filter className="h-4 w-4" />}
+            onClick={() => setShowAdvancedFilters(true)}
+          >
+            More Filters{activeFilterCount() > 0 && ` (${activeFilterCount()})`}
           </CTAButton>
         </div>
       </div>
