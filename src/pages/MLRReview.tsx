@@ -171,8 +171,7 @@ export default function MLRReview() {
   const handleExport = (format: 'csv' | 'pdf') => {
     exportReviewData(filteredSubmissions, format, {
       filename: 'mlr-review-report',
-      title: 'MLR Review Report',
-      type: 'mlr'
+      title: 'MLR Review Report'
     })
   }
 
