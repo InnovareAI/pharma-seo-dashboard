@@ -174,13 +174,11 @@ export function exportReviewData(
   options: {
     filename?: string
     title?: string
-    type?: 'seo' | 'client' | 'mlr'
   } = {}
 ) {
   const { 
     filename = 'review-export', 
-    title = 'Review Report',
-    type = 'mlr'
+    title = 'Review Report'
   } = options
 
   if (format === 'csv') {
